@@ -74,9 +74,11 @@ export default function TemplatePreviewPage() {
               </div>
               <p className="text-gray-600">{template.description}</p>
             </div>
-            <Button size="lg">
-              Use This Template
-            </Button>
+            <Link href={`/create/${templateId}/form`}>
+              <Button size="lg">
+                Use This Template
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
@@ -216,9 +218,11 @@ export default function TemplatePreviewPage() {
 
             <Card>
               <CardContent className="pt-6">
-                <Button className="w-full" size="lg">
-                  Start Creating Proposal
-                </Button>
+                <Link href={`/create/${templateId}/form`}>
+                  <Button className="w-full" size="lg">
+                    Start Creating Proposal
+                  </Button>
+                </Link>
                 <p className="text-xs text-gray-500 text-center mt-2">
                   Customize content and add client details
                 </p>
