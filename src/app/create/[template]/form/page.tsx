@@ -10,10 +10,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Product } from '@/lib/types'
 import Link from 'next/link'
 
 export default function ProposalFormPage() {
   const [user, setUser] = useState<any>(null)
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -32,6 +34,13 @@ export default function ProposalFormPage() {
     project_description: ''
   })
 
+  // Selected products with quantities and custom pricing
+  const [selectedProducts, setSelectedProducts] = useState<{
+    product_id: string
+    quantity: number
+    custom_price: string
+  }[]>([])
+
   useEffect(() => {
     async function getUser() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -40,12 +49,31 @@ export default function ProposalFormPage() {
         router.push('/auth/login')
       } else {
         setUser(user)
+        await loadProducts(user.id)
       }
       setLoading(false)
     }
 
     getUser()
   }, [router])
+
+  const loadProducts = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('user_id', userId)
+        .order('name', { ascending: true })
+
+      if (error) {
+        console.error('Error loading products:', error)
+      } else {
+        setProducts(data || [])
+      }
+    } catch (error) {
+      console.error('Error loading products:', error)
+    }
+  }
 
   useEffect(() => {
     if (template) {
@@ -83,7 +111,8 @@ export default function ProposalFormPage() {
               ...template.default_content,
               project_description: formData.project_description,
               created_from: 'template',
-              template_name: template.name
+              template_name: template.name,
+              selected_products_count: selectedProducts.length
             },
             status: 'draft'
           }
@@ -95,6 +124,25 @@ export default function ProposalFormPage() {
         console.error('Database error:', dbError)
         setError(`Failed to create proposal: ${dbError.message}`)
       } else {
+        // Save selected products if any
+        if (selectedProducts.length > 0) {
+          const { error: productsError } = await supabase
+            .from('proposal_products')
+            .insert(
+              selectedProducts.map(sp => ({
+                proposal_id: proposal.id,
+                product_id: sp.product_id,
+                quantity: sp.quantity,
+                custom_price: sp.custom_price || null
+              }))
+            )
+
+          if (productsError) {
+            console.error('Error saving products:', productsError)
+            // Don't fail the whole process, just log the error
+          }
+        }
+
         // Redirect to the proposal view/edit page
         router.push(`/proposal/${proposal.id}`)
       }
@@ -108,6 +156,51 @@ export default function ProposalFormPage() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProducts(prev => {
+      const existing = prev.find(p => p.product_id === productId)
+      if (existing) {
+        // Remove product
+        return prev.filter(p => p.product_id !== productId)
+      } else {
+        // Add product with default values
+        return [...prev, {
+          product_id: productId,
+          quantity: 1,
+          custom_price: ''
+        }]
+      }
+    })
+  }
+
+  const updateProductQuantity = (productId: string, quantity: number) => {
+    setSelectedProducts(prev => 
+      prev.map(p => 
+        p.product_id === productId 
+          ? { ...p, quantity: Math.max(1, quantity) }
+          : p
+      )
+    )
+  }
+
+  const updateProductPrice = (productId: string, price: string) => {
+    setSelectedProducts(prev => 
+      prev.map(p => 
+        p.product_id === productId 
+          ? { ...p, custom_price: price }
+          : p
+      )
+    )
+  }
+
+  const isProductSelected = (productId: string) => {
+    return selectedProducts.some(p => p.product_id === productId)
+  }
+
+  const getSelectedProduct = (productId: string) => {
+    return selectedProducts.find(p => p.product_id === productId)
   }
 
   if (loading) {
@@ -230,6 +323,116 @@ export default function ProposalFormPage() {
                       rows={4}
                       className="mt-1"
                     />
+                  </div>
+
+                  {/* Product Selection */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <Label>Services & Products</Label>
+                      {products.length === 0 && (
+                        <Link href="/products/new" className="text-sm text-blue-600 hover:underline">
+                          Add products first →
+                        </Link>
+                      )}
+                    </div>
+                    
+                    {products.length === 0 ? (
+                      <div className="p-4 bg-gray-50 rounded-lg text-center">
+                        <p className="text-sm text-gray-600 mb-2">
+                          No products available. Create your service catalog first.
+                        </p>
+                        <Link href="/products/new">
+                          <Button type="button" size="sm" variant="outline">
+                            Create Products
+                          </Button>
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-64 overflow-y-auto">
+                        {products.map((product) => {
+                          const selected = getSelectedProduct(product.id)
+                          return (
+                            <div 
+                              key={product.id} 
+                              className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                                isProductSelected(product.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                              onClick={() => toggleProductSelection(product.id)}
+                            >
+                              <div className="flex items-start space-x-3">
+                                <div className="flex-shrink-0 mt-1">
+                                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                    isProductSelected(product.id) ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                                  }`}>
+                                    {isProductSelected(product.id) && (
+                                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between">
+                                    <div>
+                                      <h4 className="text-sm font-medium text-gray-900">{product.name}</h4>
+                                      {product.category && (
+                                        <Badge variant="secondary" className="text-xs mt-1">
+                                          {product.category}
+                                        </Badge>
+                                      )}
+                                      {product.description && (
+                                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                                          {product.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                    {product.price_range && (
+                                      <div className="text-sm font-medium text-green-600 ml-2">
+                                        {product.price_range}
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Quantity and Custom Price Controls */}
+                                  {isProductSelected(product.id) && (
+                                    <div className="mt-3 grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
+                                      <div>
+                                        <Label className="text-xs text-gray-600">Quantity</Label>
+                                        <Input
+                                          type="number"
+                                          min="1"
+                                          value={selected?.quantity || 1}
+                                          onChange={(e) => updateProductQuantity(product.id, parseInt(e.target.value) || 1)}
+                                          className="h-8 text-sm"
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs text-gray-600">Custom Price</Label>
+                                        <Input
+                                          placeholder="Optional"
+                                          value={selected?.custom_price || ''}
+                                          onChange={(e) => updateProductPrice(product.id, e.target.value)}
+                                          className="h-8 text-sm"
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    
+                    {selectedProducts.length > 0 && (
+                      <div className="mt-3 p-3 bg-green-50 rounded-lg">
+                        <p className="text-sm text-green-800">
+                          ✓ {selectedProducts.length} service{selectedProducts.length > 1 ? 's' : ''} selected for this proposal
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex space-x-3">

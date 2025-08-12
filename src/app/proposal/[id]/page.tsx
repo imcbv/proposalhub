@@ -11,6 +11,7 @@ import Link from 'next/link'
 export default function ProposalViewPage() {
   const [user, setUser] = useState<any>(null)
   const [proposal, setProposal] = useState<any>(null)
+  const [proposalProducts, setProposalProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const router = useRouter()
@@ -44,6 +45,21 @@ export default function ProposalViewPage() {
           setError('Access denied')
         } else {
           setProposal(proposalData)
+          
+          // Load proposal products
+          const { data: productsData, error: productsError } = await supabase
+            .from('proposal_products')
+            .select(`
+              *,
+              products (*)
+            `)
+            .eq('proposal_id', proposalId)
+
+          if (productsError) {
+            console.error('Error loading proposal products:', productsError)
+          } else {
+            setProposalProducts(productsData || [])
+          }
         }
       } catch (err) {
         setError('Failed to load proposal')
@@ -215,6 +231,91 @@ export default function ProposalViewPage() {
                     )}
                   </div>
                 ))}
+
+                {/* Selected Products/Services */}
+                {proposalProducts.length > 0 && (
+                  <div className="mb-8">
+                    <h3 className="text-xl font-semibold mb-4">Selected Services & Investment</h3>
+                    <div className="bg-white border rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-4 py-3 border-b">
+                        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700">
+                          <div className="col-span-6">Service</div>
+                          <div className="col-span-2 text-center">Quantity</div>
+                          <div className="col-span-4 text-right">Investment</div>
+                        </div>
+                      </div>
+                      
+                      <div className="divide-y">
+                        {proposalProducts.map((pp: any, index: number) => (
+                          <div key={index} className="px-4 py-4">
+                            <div className="grid grid-cols-12 gap-4 items-start">
+                              <div className="col-span-6 flex items-start space-x-3">
+                                {pp.products.image_url && (
+                                  <img 
+                                    src={pp.products.image_url} 
+                                    alt={pp.products.name}
+                                    className="w-12 h-12 rounded object-cover flex-shrink-0"
+                                  />
+                                )}
+                                <div>
+                                  <h4 className="font-semibold text-gray-900">{pp.products.name}</h4>
+                                  {pp.products.category && (
+                                    <Badge variant="secondary" className="text-xs mt-1">
+                                      {pp.products.category}
+                                    </Badge>
+                                  )}
+                                  {pp.products.description && (
+                                    <p className="text-sm text-gray-600 mt-1">{pp.products.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="col-span-2 text-center">
+                                <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                                  {pp.quantity}
+                                </span>
+                              </div>
+                              
+                              <div className="col-span-4 text-right">
+                                <div className="text-lg font-semibold text-green-600">
+                                  {pp.custom_price || pp.products.price_range || 'Contact for pricing'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="bg-blue-50 px-4 py-4 border-t">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-gray-600">
+                            Total Services: {proposalProducts.length}
+                          </div>
+                          <div className="text-lg font-semibold text-blue-600">
+                            Comprehensive Package Solution
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 p-4 bg-green-50 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-5 h-5 text-green-600 mt-0.5">
+                          <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-green-800 mb-1">Complete Service Package</h4>
+                          <p className="text-sm text-green-700">
+                            All selected services are designed to work together seamlessly, 
+                            providing you with comprehensive support throughout your project lifecycle.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Call to Action */}
                 <div className="bg-gray-50 rounded-lg p-8 text-center">
