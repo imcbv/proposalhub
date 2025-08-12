@@ -54,6 +54,11 @@ export default function DashboardPage() {
               <p className="text-gray-600">Dashboard</p>
             </div>
             <div className="flex items-center space-x-4">
+              <Link href="/products">
+                <Button variant="outline" size="sm">
+                  Manage Products
+                </Button>
+              </Link>
               <span className="text-sm text-gray-600">
                 {user.email}
               </span>
