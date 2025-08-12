@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -111,7 +112,9 @@ export default function DashboardPage() {
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Recent Proposals</h2>
-              <Button>Create New Proposal</Button>
+              <Link href="/create">
+                <Button>Create New Proposal</Button>
+              </Link>
             </div>
           </div>
           <div className="p-6">
@@ -125,7 +128,9 @@ export default function DashboardPage() {
               <p className="text-gray-500 mb-4">
                 Create your first proposal to start tracking client engagement
               </p>
-              <Button>Get Started</Button>
+              <Link href="/create">
+                <Button>Get Started</Button>
+              </Link>
             </div>
           </div>
         </div>
