@@ -43,7 +43,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">vjsual offers</CardTitle>
+          <CardTitle className="text-2xl font-bold">ProposalHub</CardTitle>
           <p className="text-gray-600">Log in to your account</p>
         </CardHeader>
         <CardContent>

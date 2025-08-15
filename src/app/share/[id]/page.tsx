@@ -1,204 +1,106 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useParams, notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import TipTapEditor from '@/components/editor/TipTapEditor'
-import Link from 'next/link'
 
-export default function ProposalViewPage() {
-  const [user, setUser] = useState<any>(null)
+export default function PublicProposalPage() {
   const [proposal, setProposal] = useState<any>(null)
   const [proposalProducts, setProposalProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [isEditing, setIsEditing] = useState(false)
-  const [editableContent, setEditableContent] = useState<any>(null)
-  const [sharing, setSharing] = useState(false)
-  const [shareMessage, setShareMessage] = useState('')
-  const router = useRouter()
+  const [submitting, setSubmitting] = useState(false)
+  const [responded, setResponded] = useState(false)
   const params = useParams()
   
   const proposalId = params.id as string
 
   useEffect(() => {
-    async function loadData() {
+    async function loadProposal() {
       try {
-        // Get user
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) {
-          router.push('/auth/login')
-          return
-        }
-        
-        setUser(user)
-
-        // Get proposal
+        // Get proposal (no auth required for public sharing)
         const { data: proposalData, error: proposalError } = await supabase
           .from('proposals')
           .select('*')
           .eq('id', proposalId)
           .single()
 
-        if (proposalError) {
-          setError('Proposal not found')
-        } else if (proposalData.user_id !== user.id) {
-          setError('Access denied')
-        } else {
-          setProposal(proposalData)
-          setEditableContent(proposalData.content)
-          
-          // Load proposal products
-          const { data: productsData, error: productsError } = await supabase
-            .from('proposal_products')
-            .select(`
-              *,
-              products (*)
-            `)
-            .eq('proposal_id', proposalId)
-
-          if (productsError) {
-            console.error('Error loading proposal products:', productsError)
-          } else {
-            setProposalProducts(productsData || [])
-          }
+        if (proposalError || !proposalData) {
+          notFound()
+          return
         }
+
+        setProposal(proposalData)
+        
+        // Load proposal products
+        const { data: productsData, error: productsError } = await supabase
+          .from('proposal_products')
+          .select(`
+            *,
+            products (*)
+          `)
+          .eq('proposal_id', proposalId)
+
+        if (!productsError) {
+          setProposalProducts(productsData || [])
+        }
+
+        // Track view (increment view count and update last_viewed_at)
+        await supabase
+          .from('proposals')
+          .update({
+            view_count: (proposalData.view_count || 0) + 1,
+            last_viewed_at: new Date().toISOString()
+          })
+          .eq('id', proposalId)
+
       } catch (err) {
-        setError('Failed to load proposal')
+        console.error('Error loading proposal:', err)
+        notFound()
       } finally {
         setLoading(false)
       }
     }
 
     if (proposalId) {
-      loadData()
+      loadProposal()
     }
-  }, [proposalId, router])
+  }, [proposalId])
 
-  const handleSaveContent = async () => {
-    if (!user || !proposal || !editableContent) return
-    
-    setSaving(true)
+  const handleResponse = async (response: 'accepted' | 'rejected') => {
+    setSubmitting(true)
     try {
       const { error } = await supabase
         .from('proposals')
-        .update({
-          content: editableContent,
+        .update({ 
+          status: response,
           updated_at: new Date().toISOString()
         })
         .eq('id', proposalId)
-        .eq('user_id', user.id)
 
-      if (error) {
-        console.error('Error saving proposal:', error)
-        setError('Failed to save changes')
-      } else {
-        setProposal({ ...proposal, content: editableContent })
-        setIsEditing(false)
-        setError('')
+      if (!error) {
+        setProposal({ ...proposal, status: response })
+        setResponded(true)
       }
     } catch (err) {
-      console.error('Save error:', err)
-      setError('Failed to save changes')
+      console.error('Error updating proposal:', err)
     } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleCancelEdit = () => {
-    setEditableContent(proposal.content)
-    setIsEditing(false)
-    setError('')
-  }
-
-  const handleContentChange = (content: string) => {
-    setEditableContent({
-      ...editableContent,
-      editable_html: content
-    })
-  }
-
-  const handleShareWithClient = async () => {
-    if (!proposal) return
-
-    setSharing(true)
-    setShareMessage('')
-
-    try {
-      // Generate shareable URL
-      const shareUrl = `${window.location.origin}/share/${proposalId}`
-
-      // Copy to clipboard
-      await navigator.clipboard.writeText(shareUrl)
-
-      // Update proposal status to "sent" if it's currently "draft"
-      if (proposal.status === 'draft') {
-        const { error } = await supabase
-          .from('proposals')
-          .update({
-            status: 'sent',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', proposalId)
-          .eq('user_id', user.id)
-
-        if (error) {
-          setShareMessage('Share URL copied, but failed to update proposal status')
-        } else {
-          setProposal({ ...proposal, status: 'sent' })
-          setShareMessage('✅ Share URL copied to clipboard! Proposal marked as sent.')
-        }
-      } else {
-        setShareMessage('✅ Share URL copied to clipboard!')
-      }
-
-      // Clear message after 3 seconds
-      setTimeout(() => setShareMessage(''), 3000)
-
-    } catch (err) {
-      console.error('Share error:', err)
-      setShareMessage('❌ Failed to copy URL to clipboard')
-      setTimeout(() => setShareMessage(''), 3000)
-    } finally {
-      setSharing(false)
+      setSubmitting(false)
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-lg">Loading proposal...</div>
       </div>
     )
   }
 
-  if (error || !proposal) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">{error || 'Proposal not found'}</h2>
-          <Link href="/dashboard">
-            <Button>Back to Dashboard</Button>
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'draft': return 'bg-gray-100 text-gray-800'
-      case 'sent': return 'bg-blue-100 text-blue-800'
-      case 'viewed': return 'bg-yellow-100 text-yellow-800'
-      case 'accepted': return 'bg-green-100 text-green-800'
-      case 'rejected': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
+  if (!proposal) {
+    return notFound()
   }
 
   return (
@@ -208,58 +110,35 @@ export default function ProposalViewPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <Link href="/dashboard" className="text-blue-600 hover:underline text-sm">
-                ← Back to Dashboard
-              </Link>
-              <div className="flex items-center mt-2 space-x-3">
+              <div className="flex items-center space-x-3">
                 <h1 className="text-3xl font-bold text-gray-900">{proposal.title}</h1>
-                <Badge className={getStatusColor(proposal.status)}>
+                <Badge className={`${
+                  proposal.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                  proposal.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                  'bg-blue-100 text-blue-800'
+                }`}>
                   {proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
                 </Badge>
               </div>
               <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                <span>Client: {proposal.client_name}</span>
+                <span>For: {proposal.client_name}</span>
                 {proposal.client_company && <span>• {proposal.client_company}</span>}
-                <span>• Created {new Date(proposal.created_at).toLocaleDateString()}</span>
+                <span>• {new Date(proposal.created_at).toLocaleDateString()}</span>
               </div>
             </div>
-            <div className="flex space-x-3">
-              {isEditing ? (
-                <>
-                  <Button onClick={handleSaveContent} disabled={saving}>
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                  <Button variant="outline" onClick={handleCancelEdit} disabled={saving}>
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button variant="outline" onClick={() => setIsEditing(true)}>
-                    Edit Proposal
-                  </Button>
-                  <Button onClick={handleShareWithClient} disabled={sharing}>
-                    {sharing ? 'Sharing...' : 'Share with Client'}
-                  </Button>
-                </>
-              )}
+            <div className="text-right">
+              <div className="text-sm text-gray-500">
+                Shared Proposal
+              </div>
+              <div className="text-xs text-gray-400">
+                Views: {proposal.view_count || 0}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Share Message */}
-        {shareMessage && (
-          <div className={`mb-6 p-4 rounded-lg border ${
-            shareMessage.includes('✅') 
-              ? 'bg-green-50 border-green-200 text-green-800' 
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
-            {shareMessage}
-          </div>
-        )}
-        
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-3">
@@ -288,7 +167,7 @@ export default function ProposalViewPage() {
                         {proposal.content.hero?.title || proposal.title}
                       </h1>
                       
-                      {/* Subtitle */}
+                      {/* Subtitle with typing effect */}
                       <p className="text-xl md:text-2xl text-blue-100 mb-8 leading-relaxed animate-fade-in-up animation-delay-300">
                         {proposal.content.hero?.subtitle || 'Professional proposal tailored for your needs'}
                       </p>
@@ -344,35 +223,6 @@ export default function ProposalViewPage() {
                     <div className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg">
                       {proposal.content.project_description}
                     </div>
-                  </div>
-                )}
-
-                {/* TipTap Editor Section - Editable Content */}
-                {isEditing && (
-                  <div className="mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-semibold">Edit Proposal Content</h3>
-                      <div className="text-sm text-gray-500">
-                        Use the toolbar below to format your content
-                      </div>
-                    </div>
-                    <TipTapEditor
-                      content={editableContent?.editable_html || ''}
-                      onChange={handleContentChange}
-                      placeholder="Add custom content, additional sections, or modify the proposal..."
-                      className="border-2 border-blue-200"
-                    />
-                  </div>
-                )}
-
-                {/* Display saved custom content */}
-                {!isEditing && editableContent?.editable_html && (
-                  <div className="mb-8">
-                    <h3 className="text-xl font-semibold mb-4">Additional Content</h3>
-                    <div 
-                      className="prose max-w-none bg-gray-50 p-4 rounded-lg"
-                      dangerouslySetInnerHTML={{ __html: editableContent.editable_html }}
-                    />
                   </div>
                 )}
 
@@ -502,44 +352,70 @@ export default function ProposalViewPage() {
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="mt-4 p-4 bg-green-50 rounded-lg">
-                      <div className="flex items-start space-x-3">
-                        <div className="w-5 h-5 text-green-600 mt-0.5">
-                          <svg fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-green-800 mb-1">Complete Service Package</h4>
-                          <p className="text-sm text-green-700">
-                            All selected services are designed to work together seamlessly, 
-                            providing you with comprehensive support throughout your project lifecycle.
-                          </p>
-                        </div>
-                      </div>
+                  </div>
+                )}
+
+                {/* Response Section */}
+                {!responded && proposal.status === 'sent' && (
+                  <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-8 text-center border">
+                    <h3 className="text-xl font-semibold mb-4">Ready to Move Forward?</h3>
+                    <p className="text-gray-600 mb-6">
+                      We're excited to partner with {proposal.client_company || proposal.client_name} on this important initiative.
+                    </p>
+                    <div className="flex justify-center space-x-4">
+                      <Button 
+                        onClick={() => handleResponse('accepted')} 
+                        disabled={submitting}
+                        className="bg-green-600 hover:bg-green-700 px-8"
+                      >
+                        {submitting ? 'Processing...' : 'Accept Proposal'}
+                      </Button>
+                      <Button 
+                        onClick={() => handleResponse('rejected')} 
+                        disabled={submitting}
+                        variant="outline"
+                        className="px-8"
+                      >
+                        {submitting ? 'Processing...' : 'Decline'}
+                      </Button>
                     </div>
                   </div>
                 )}
 
-                {/* Call to Action */}
-                <div className="bg-gray-50 rounded-lg p-8 text-center">
-                  <h3 className="text-xl font-semibold mb-4">Ready to Move Forward?</h3>
-                  <p className="text-gray-600 mb-6">
-                    We're excited to partner with {proposal.client_company || proposal.client_name} on this important initiative.
-                  </p>
-                  <div className="flex justify-center space-x-4">
-                    <Button className="bg-green-600 hover:bg-green-700">
-                      Accept Proposal
-                    </Button>
-                    <Button variant="outline">
-                      Request Changes
-                    </Button>
-                    <Button variant="outline">
-                      Schedule Discussion
-                    </Button>
+                {/* Response Confirmation */}
+                {responded && (
+                  <div className={`rounded-lg p-8 text-center border ${
+                    proposal.status === 'accepted' 
+                      ? 'bg-green-50 border-green-200' 
+                      : 'bg-red-50 border-red-200'
+                  }`}>
+                    <h3 className="text-xl font-semibold mb-2">
+                      {proposal.status === 'accepted' ? 'Proposal Accepted! 🎉' : 'Response Recorded'}
+                    </h3>
+                    <p className="text-gray-600">
+                      {proposal.status === 'accepted' 
+                        ? 'Thank you for accepting our proposal. We will be in touch soon to get started!'
+                        : 'Thank you for your response. We appreciate your consideration.'
+                      }
+                    </p>
                   </div>
-                </div>
+                )}
+
+                {/* Already Responded */}
+                {!responded && (proposal.status === 'accepted' || proposal.status === 'rejected') && (
+                  <div className={`rounded-lg p-8 text-center border ${
+                    proposal.status === 'accepted' 
+                      ? 'bg-green-50 border-green-200' 
+                      : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <h3 className="text-xl font-semibold mb-2">
+                      {proposal.status === 'accepted' ? 'Proposal Accepted ✅' : 'Response Recorded'}
+                    </h3>
+                    <p className="text-gray-600">
+                      This proposal has already been {proposal.status}.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -548,22 +424,19 @@ export default function ProposalViewPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Proposal Stats</CardTitle>
+                <CardTitle className="text-lg">Proposal Details</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div>
-                    <div className="text-sm text-gray-600">Views</div>
-                    <div className="text-2xl font-bold">{proposal.view_count}</div>
+                    <div className="text-sm text-gray-600">Status</div>
+                    <div className="font-medium">
+                      {proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
+                    </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600">Last Viewed</div>
-                    <div className="text-sm">
-                      {proposal.last_viewed_at ? 
-                        new Date(proposal.last_viewed_at).toLocaleDateString() : 
-                        'Never'
-                      }
-                    </div>
+                    <div className="text-sm text-gray-600">Views</div>
+                    <div className="text-xl font-bold">{proposal.view_count}</div>
                   </div>
                   <div>
                     <div className="text-sm text-gray-600">Template</div>
@@ -571,31 +444,28 @@ export default function ProposalViewPage() {
                       {proposal.content.template_name || 'Custom'}
                     </div>
                   </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Created</div>
+                    <div className="text-sm">
+                      {new Date(proposal.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Contact Card */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Client Details</CardTitle>
+                <CardTitle className="text-lg">Questions?</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div>
-                    <div className="text-sm text-gray-600">Name</div>
-                    <div className="font-medium">{proposal.client_name}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600">Email</div>
-                    <div className="text-sm">{proposal.client_email}</div>
-                  </div>
-                  {proposal.client_company && (
-                    <div>
-                      <div className="text-sm text-gray-600">Company</div>
-                      <div className="font-medium">{proposal.client_company}</div>
-                    </div>
-                  )}
-                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Have questions about this proposal? Get in touch with us directly.
+                </p>
+                <Button variant="outline" size="sm" className="w-full">
+                  Contact Us
+                </Button>
               </CardContent>
             </Card>
           </div>

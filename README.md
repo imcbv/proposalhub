@@ -1,36 +1,164 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ProposalHub 📄
 
-## Getting Started
+A modern SaaS platform for creating interactive, trackable proposal websites that replace static PDF proposals.
 
-First, run the development server:
+## ✨ Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Interactive Proposals**: Replace boring PDFs with engaging, interactive proposal websites
+- **Real-time Analytics**: Track who views your proposals and for how long
+- **Client Responses**: Built-in Accept/Reject functionality for seamless client interaction
+- **Professional Templates**: Industry-focused templates with stunning visual design
+- **Product Management**: Comprehensive catalog system for services and products
+- **Public Sharing**: Secure, shareable URLs that don't require client login
+- **Rich Text Editing**: Advanced WYSIWYG editor with formatting options
+- **Dashboard**: Real-time stats and proposal management interface
+
+## 🛠 Tech Stack
+
+- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS
+- **UI Components**: shadcn/ui with Lucide React icons  
+- **Backend**: Supabase (PostgreSQL, Auth, Storage)
+- **Editor**: TipTap with rich text extensions
+- **Deployment**: Vercel
+- **Authentication**: Email/Password via Supabase Auth
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+- Supabase account
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/YOUR-USERNAME/proposalhub.git
+   cd proposalhub
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   Create a `.env.local` file:
+   ```bash
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+4. **Set up Supabase database**
+   Run the SQL commands from `claude.md` to create tables
+
+5. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+6. **Open your browser**
+   Navigate to `http://localhost:3000`
+
+## 📊 Database Schema
+
+The application uses these main tables:
+- `proposals` - Stores proposal data and status
+- `products` - Service/product catalog 
+- `proposal_products` - Links products to proposals
+- `templates` - Proposal templates (optional)
+
+See `claude.md` for complete SQL schema.
+
+## 🎨 Core Features
+
+### Proposal Creation
+- Choose from professional templates
+- Add client information
+- Select services/products from catalog
+- Real-time preview
+
+### Public Sharing
+- Generate secure, shareable URLs
+- No client login required
+- Track views and engagement
+- Accept/Reject functionality
+
+### Dashboard
+- View all proposals with real-time stats
+- Quick sharing and editing
+- Status tracking and analytics
+- Product management
+
+## 🌟 Templates
+
+Current templates focus on professional services:
+- Clinical Trial Partnership
+- FDA Regulatory Consulting  
+- Drug Development Collaboration
+
+Easy to add new templates by extending the templates system.
+
+## 🔧 Development
+
+### Project Structure
+```
+src/
+├── app/              # Next.js app router pages
+├── components/       # Reusable UI components
+├── lib/             # Utilities and configurations
+└── data/            # Mock data and constants
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Key Components
+- `TipTapEditor` - Rich text editing
+- `ProposalViewer` - Public proposal display
+- `Dashboard` - Management interface
+- `TemplateSelector` - Template choosing UI
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📈 Analytics
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Built-in analytics track:
+- Proposal view counts
+- Last viewed timestamps  
+- Client engagement metrics
+- Status conversion rates
 
-## Learn More
+## 🚀 Deployment
 
-To learn more about Next.js, take a look at the following resources:
+### Vercel (Recommended)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **Push to GitHub**
+2. **Connect to Vercel** 
+3. **Add environment variables**
+4. **Deploy automatically**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Environment Variables for Production
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-## Deploy on Vercel
+## 🤝 Contributing
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📝 License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+## 🎯 Roadmap
+
+- [ ] Advanced analytics dashboard
+- [ ] Email notifications
+- [ ] CRM integrations  
+- [ ] Multi-language support
+- [ ] White-label branding
+- [ ] Payment integration
+- [ ] Advanced template builder
+
+---
+
+**Built with ❤️ using Next.js and Supabase**

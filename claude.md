@@ -1,8 +1,8 @@
-# vjsual offers Clone - Development Instructions
+# ProposalHub - Development Instructions
 
 ## Project Overview
 
-A 48-hour POC to clone vjsual offers - a SaaS platform for creating interactive, trackable proposal websites that replace static PDF proposals. Built to demonstrate development capabilities to LaunchPharm CEO.
+A modern SaaS platform for creating interactive, trackable proposal websites that replace static PDF proposals. Built with Next.js, TypeScript, and Supabase.
 
 ## Problem We're Solving
 

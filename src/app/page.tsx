@@ -29,7 +29,7 @@ export default function Home() {
           </div>
           
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-            vjsual offers
+            ProposalHub
           </h1>
           
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
