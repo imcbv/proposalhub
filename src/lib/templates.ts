@@ -2,6 +2,35 @@ import { Template } from './types'
 
 export const pharmaTemplates: Template[] = [
   {
+    id: 'blank-template',
+    name: 'Blank Proposal',
+    description: 'Start with a simple, clean template you can customize',
+    category: 'Basic',
+    preview_image: '',
+    is_active: true,
+    default_content: {
+      hero: {
+        title: 'Your Proposal Title',
+        subtitle: 'Add your subtitle here'
+      },
+      sections: [
+        {
+          id: 'overview',
+          title: 'Overview',
+          content: 'Describe your proposal and what you\'re offering to the client...'
+        },
+        {
+          id: 'services',
+          title: 'Services & Solutions',
+          items: [
+            { name: 'Service 1', description: 'Describe your first service or solution...' },
+            { name: 'Service 2', description: 'Describe your second service or solution...' }
+          ]
+        }
+      ]
+    }
+  },
+  {
     id: 'clinical-trial-partnership',
     name: 'Clinical Trial Partnership',
     description: 'Partnership proposal for clinical development services',

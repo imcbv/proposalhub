@@ -183,9 +183,11 @@ export default function CreatePage() {
             <p className="text-gray-600 mb-4">
               Create a basic proposal without using a template
             </p>
-            <Button variant="outline">
-              Create Blank Proposal
-            </Button>
+            <Link href="/create/blank-template/form">
+              <Button variant="outline">
+                Create Blank Proposal
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
