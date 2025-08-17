@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useDraggable, useDroppable } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useDraggable, useDroppable, closestCenter } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -45,6 +46,64 @@ function DraggableBlock({ blockType }: { blockType: typeof BLOCK_TYPES[number] }
           <div className="text-xs text-gray-500">{blockType.description}</div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Sortable Block Component (for canvas blocks)
+function SortableBlock({ 
+  block, 
+  onEdit, 
+  onDelete, 
+  previewMode 
+}: { 
+  block: Block
+  onEdit: (block: Block) => void
+  onDelete: () => void
+  previewMode: boolean
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: block.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  const BlockComponent = BlockComponents[block.type]
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative group ${isDragging ? 'z-50 opacity-75' : ''}`}
+    >
+      <BlockComponent
+        block={block}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        className={previewMode ? 'pointer-events-none' : ''}
+      />
+      
+      {/* Drag handle - positioned over the block */}
+      {!previewMode && (
+        <div
+          {...attributes}
+          {...listeners}
+          className="absolute top-2 right-2 w-8 h-8 bg-gray-600 hover:bg-gray-700 rounded cursor-move opacity-0 group-hover:opacity-90 transition-opacity flex items-center justify-center shadow-sm"
+          title="Drag to reorder"
+        >
+          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M7 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM7 8a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM7 14a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM13 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM13 8a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM13 14a2 2 0 1 1 0 4 2 2 0 0 1 0-4z" />
+          </svg>
+        </div>
+      )}
     </div>
   )
 }
@@ -109,13 +168,26 @@ export default function TemplateBuilderPage() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     
-    if (over && over.id === 'canvas') {
-      // Dragging from sidebar to canvas
-      if (typeof active.id === 'string' && active.id.startsWith('sidebar-')) {
-        const blockType = active.id.replace('sidebar-', '') as Block['type']
-        const newBlock = createBlock(blockType)
-        setBlocks(prev => [...prev, newBlock])
-      }
+    if (!over) {
+      setActiveId(null)
+      return
+    }
+    
+    // Dragging from sidebar to canvas
+    if (typeof active.id === 'string' && active.id.startsWith('sidebar-') && over.id === 'canvas') {
+      const blockType = active.id.replace('sidebar-', '') as Block['type']
+      const newBlock = createBlock(blockType)
+      setBlocks(prev => [...prev, newBlock])
+    }
+    
+    // Reordering blocks within canvas
+    if (active.id !== over.id && !active.id.toString().startsWith('sidebar-')) {
+      setBlocks((blocks) => {
+        const oldIndex = blocks.findIndex(block => block.id === active.id)
+        const newIndex = blocks.findIndex(block => block.id === over.id)
+        
+        return arrayMove(blocks, oldIndex, newIndex)
+      })
     }
     
     setActiveId(null)
@@ -150,7 +222,11 @@ export default function TemplateBuilderPage() {
   }
 
   return (
-    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext 
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart} 
+      onDragEnd={handleDragEnd}
+    >
       <div className="min-h-screen bg-gray-50 flex">
         
         {/* Left Sidebar - Block Library */}
@@ -206,22 +282,47 @@ export default function TemplateBuilderPage() {
 
           {/* Canvas Area */}
           <div className="flex-1 p-6 overflow-y-auto">
-            <DroppableCanvas isEmpty={blocks.length === 0}>
-              <div className="space-y-6">
-                {blocks.map((block) => {
-                  const BlockComponent = BlockComponents[block.type]
-                  return (
-                    <BlockComponent
-                      key={block.id}
-                      block={block}
-                      onEdit={(updatedBlock) => handleBlockEdit(block.id, updatedBlock)}
-                      onDelete={() => handleBlockDelete(block.id)}
-                      className={previewMode ? 'pointer-events-none' : ''}
-                    />
-                  )
-                })}
+            {previewMode ? (
+              /* Preview Mode - Clean view without editing controls */
+              <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border">
+                <div className="p-8 space-y-8">
+                  <div className="text-center border-b pb-6">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{templateName}</h1>
+                    <p className="text-gray-600">{templateDescription}</p>
+                  </div>
+                  {blocks.map((block) => {
+                    const BlockComponent = BlockComponents[block.type]
+                    return (
+                      <div key={block.id} className="proposal-section">
+                        <BlockComponent
+                          block={block}
+                          onEdit={() => {}}
+                          onDelete={() => {}}
+                          className="pointer-events-none"
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            </DroppableCanvas>
+            ) : (
+              /* Edit Mode - With drag/drop and editing controls */
+              <DroppableCanvas isEmpty={blocks.length === 0}>
+                <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-6">
+                    {blocks.map((block) => (
+                      <SortableBlock
+                        key={block.id}
+                        block={block}
+                        onEdit={(updatedBlock) => handleBlockEdit(block.id, updatedBlock)}
+                        onDelete={() => handleBlockDelete(block.id)}
+                        previewMode={previewMode}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DroppableCanvas>
+            )}
           </div>
         </div>
 
