@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { pharmaTemplates } from '@/lib/templates'
+import { Template } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -12,21 +13,49 @@ import Link from 'next/link'
 export default function CreatePage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [allTemplates, setAllTemplates] = useState<Template[]>([])
   const router = useRouter()
 
   useEffect(() => {
-    async function getUser() {
+    async function loadData() {
       const { data: { user } } = await supabase.auth.getUser()
       
       if (!user) {
         router.push('/auth/login')
-      } else {
-        setUser(user)
+        return
       }
+
+      setUser(user)
+
+      // Load custom templates from database
+      const { data: customTemplates, error } = await supabase
+        .from('templates')
+        .select('*')
+        .eq('is_active', true)
+
+      if (error) {
+        console.log('Using default templates only:', error.message)
+        setAllTemplates(pharmaTemplates)
+      } else {
+        // Combine hardcoded templates with custom templates
+        const dbTemplates = customTemplates?.map(template => ({
+          id: template.id,
+          name: template.name,
+          description: template.description || '',
+          category: template.category || 'Custom',
+          preview_image: template.preview_image || '',
+          is_active: template.is_active,
+          default_content: template.default_content
+        })) || []
+        
+        console.log(`Loaded ${dbTemplates.length} custom templates`)
+        setAllTemplates([...pharmaTemplates, ...dbTemplates])
+      }
+      
       setLoading(false)
     }
 
-    getUser()
+    loadData()
   }, [router])
 
   if (loading) {
@@ -61,13 +90,13 @@ export default function CreatePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Template Selection */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Pharma Industry Templates</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Proposal Templates</h2>
           <p className="text-gray-600 mb-6">
-            Professional proposal templates designed for pharmaceutical and biotech companies
+            Choose from professional templates or your custom templates created with the builder
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pharmaTemplates.map((template) => (
+            {allTemplates.map((template) => (
               <Link key={template.id} href={`/create/${template.id}`}>
                 <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
                   <CardHeader>

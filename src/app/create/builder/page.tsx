@@ -204,9 +204,93 @@ export default function TemplateBuilderPage() {
   }
 
   const handleSaveTemplate = async () => {
-    // TODO: Save to database
-    console.log('Saving template:', { templateName, templateDescription, blocks })
-    alert('Template saved! (TODO: Implement database save)')
+    if (!templateName.trim()) {
+      alert('Please enter a template name')
+      return
+    }
+
+    if (blocks.length === 0) {
+      alert('Please add at least one block to your template')
+      return
+    }
+
+    try {
+      // Generate a unique template ID
+      const templateId = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      
+      // Convert blocks to the template format
+      const templateContent = {
+        hero: {
+          title: templateName,
+          subtitle: templateDescription
+        },
+        sections: blocks.map(block => {
+          switch (block.type) {
+            case 'text':
+              return {
+                id: block.id,
+                title: block.title,
+                content: block.content
+              }
+            case 'services':
+              return {
+                id: block.id,
+                title: block.title,
+                items: block.items
+              }
+            case 'timeline':
+              return {
+                id: block.id,
+                title: block.title,
+                milestones: block.milestones
+              }
+            case 'team':
+              return {
+                id: block.id,
+                title: block.title,
+                team: block.team
+              }
+            case 'stats':
+              return {
+                id: block.id,
+                title: block.title,
+                stats: block.stats
+              }
+            default:
+              return {
+                id: block.id,
+                title: block.title,
+                content: 'Content not supported'
+              }
+          }
+        })
+      }
+
+      // Save to database
+      const { error } = await supabase
+        .from('templates')
+        .insert({
+          id: templateId,
+          name: templateName,
+          description: templateDescription,
+          category: 'Custom',
+          preview_image: null,
+          default_content: templateContent,
+          is_active: true
+        })
+
+      if (error) {
+        console.error('Error saving template:', error)
+        alert('Error saving template: ' + error.message)
+      } else {
+        alert('Template saved successfully! You can now use it to create proposals.')
+        // Optionally redirect to create page to show the new template
+        // router.push('/create')
+      }
+    } catch (error) {
+      console.error('Unexpected error saving template:', error)
+      alert('Unexpected error occurred while saving template')
+    }
   }
 
   if (loading) {

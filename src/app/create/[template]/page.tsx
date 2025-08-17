@@ -11,27 +11,55 @@ import Link from 'next/link'
 
 export default function TemplatePreviewPage() {
   const [user, setUser] = useState<any>(null)
+  const [template, setTemplate] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const params = useParams()
   
   const templateId = params.template as string
-  const template = pharmaTemplates.find(t => t.id === templateId)
 
   useEffect(() => {
-    async function getUser() {
+    async function loadData() {
       const { data: { user } } = await supabase.auth.getUser()
       
       if (!user) {
         router.push('/auth/login')
-      } else {
-        setUser(user)
+        return
       }
+
+      setUser(user)
+
+      // First check hardcoded templates
+      let foundTemplate = pharmaTemplates.find(t => t.id === templateId)
+      
+      // If not found, check database
+      if (!foundTemplate) {
+        const { data: dbTemplate, error } = await supabase
+          .from('templates')
+          .select('*')
+          .eq('id', templateId)
+          .eq('is_active', true)
+          .single()
+
+        if (!error && dbTemplate) {
+          foundTemplate = {
+            id: dbTemplate.id,
+            name: dbTemplate.name,
+            description: dbTemplate.description || '',
+            category: dbTemplate.category || 'Custom',
+            preview_image: dbTemplate.preview_image || '',
+            is_active: dbTemplate.is_active,
+            default_content: dbTemplate.default_content
+          }
+        }
+      }
+      
+      setTemplate(foundTemplate)
       setLoading(false)
     }
 
-    getUser()
-  }, [router])
+    loadData()
+  }, [router, templateId])
 
   if (loading) {
     return (
