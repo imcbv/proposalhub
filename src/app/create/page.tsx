@@ -125,20 +125,39 @@ export default function CreatePage() {
           </div>
         </div>
 
-        {/* Custom Template Option */}
-        <div className="bg-white rounded-lg shadow p-6 text-center">
-          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+        {/* Custom Template Options */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Template Builder</h3>
+            <p className="text-gray-600 mb-4">
+              Use our visual drag-and-drop builder to create custom templates
+            </p>
+            <Link href="/create/builder">
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                Launch Builder
+              </Button>
+            </Link>
           </div>
-          <h3 className="text-lg font-semibold mb-2">Start from Scratch</h3>
-          <p className="text-gray-600 mb-4">
-            Create a custom proposal without using a template
-          </p>
-          <Button variant="outline">
-            Create Blank Proposal
-          </Button>
+
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Start from Scratch</h3>
+            <p className="text-gray-600 mb-4">
+              Create a basic proposal without using a template
+            </p>
+            <Button variant="outline">
+              Create Blank Proposal
+            </Button>
+          </div>
         </div>
       </div>
     </div>
